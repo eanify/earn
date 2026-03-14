@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GlintEarn - Premium Platform</title>
+
+    <!-- Ad SDK da ka bayar -->
+    <script src='//libtl.com/sdk.js' data-zone='10730933' data-sdk='show_10730933'></script>
+
+    <!-- SDKs -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --milk: #F5F5DC;
+            --brown: #5D4037;
+            --dark-brown: #3E2723;
+            --tan: #D2B48C;
+            --white: #FFFFFF;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            background-color: var(--milk); 
+            color: var(--dark-brown); 
+            font-family: 'Trebuchet MS', sans-serif; 
+            margin: 0; padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* Splash Screen */
+        #splash {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--milk); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 10000;
+        }
+
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .history-icon { 
+            background: var(--brown); color: var(--milk); width: 45px; height: 45px; 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; font-size: 20px; border: 2px solid var(--tan);
+        }
+
+        /* Balance Card */
+        .wallet-card {
+            background: var(--brown); color: var(--milk);
+            padding: 35px 20px; border-radius: 25px;
+            text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+        .wallet-card h1 { margin: 10px 0; font-size: 42px; }
+
+        /* Stats */
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .stat-item { background: var(--white); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid var(--tan); }
+        .stat-item b { color: var(--brown); font-size: 18px; display: block; }
+
+        /* Buttons */
+        .btn-main { 
+            background: var(--brown); color: var(--milk); width: 100%; 
+            padding: 18px; border-radius: 15px; border: none; font-weight: bold;
+            font-size: 16px; margin-bottom: 15px; cursor: pointer;
+        }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Job Cards */
+        .job-card {
+            background: var(--white); border-radius: 15px; padding: 15px;
+            margin-bottom: 12px; display: flex; justify-content: space-between;
+            align-items: center; border-left: 6px solid var(--brown);
+        }
+        .reward { color: #2e7d32; font-weight: bold; }
+        .btn-task { background: var(--tan); color: var(--dark-brown); border: none; padding: 10px 18px; border-radius: 10px; font-weight: bold; font-size: 13px; }
+
+        /* Modal History */
+        #history-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 10001; padding: 20px;
+        }
+        .modal-body { background: var(--milk); padding: 20px; border-radius: 20px; max-height: 80vh; overflow-y: auto; }
+
+        /* Footer Options */
+        .more-options {
+            background: var(--white); border-radius: 20px; padding: 20px;
+            margin-top: 30px; border: 1px solid var(--tan);
+        }
+        .footer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .footer-btn { 
+            border: 2px solid var(--brown); border-radius: 12px; padding: 12px;
+            text-align: center; color: var(--brown); font-weight: bold; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="splash"><img src="logo.png" width="80"><br><b>GlintEarn</b></div>
+
+    <div class="header">
+        <div>Welcome, <b id="display-name">...</b></div>
+        <div class="history-icon" onclick="toggleHistory(true)">🕒</div>
+    </div>
+
+    <div class="wallet-card">
+        <small>AVAILABLE BALANCE</small>
+        <h1 id="bal-text">$0.000</h1>
+        <small>Min Withdrawal: $5.00 + 10 Referrals</small>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-item"><b id="ads-count">0/15</b><small>Daily Ads</small></div>
+        <div class="stat-item"><b id="ref-count">0/10</b><small>Invites</small></div>
+    </div>
+
+    <button class="btn-main" onclick="watchAd()">📺 Watch Ads (Daily 15)</button>
+    <button class="btn-main" style="background:var(--tan); color:var(--dark-brown)" onclick="processWithdraw()">💰 Withdraw USDT</button>
+
+    <h3>⚡ Micro Jobs (6h Cooldown)</h3>
+    <div id="jobs-container"></div>
+
+    <div class="more-options">
+        <b>More Options</b>
+        <div class="footer-grid">
+            <div class="footer-btn" onclick="inviteFriend()">👤 Invite</div>
+            <div class="footer-btn" onclick="window.location.href='mailto:glintearnsupport@gmail.com'">🎧 Support</div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="history-modal">
+        <div class="modal-body">
+            <h3>Withdrawal History</h3>
+            <div id="hist-content">No history found.</div>
+            <button class="btn-main" style="margin-top:20px" onclick="toggleHistory(false)">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzzgsXE6dpO5OD6LO0g8osMY1tZ5xoh14",
+            authDomain: "glintearn.firebaseapp.com",
+            databaseURL: "https://glintearn-default-rtdb.firebaseio.com",
+            projectId: "glintearn",
+            storageBucket: "glintearn.firebasestorage.app",
+            messagingSenderId: "670088953296",
+            appId: "1:670088953296:web:29c03248336765e623cdd5"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "test_user";
+        const userRef = db.ref('users/' + userId);
+
+        const tasksList = [
+            {id:1, title: "Visit Partner Site", reward: 0.01},
+            {id:2, title: "Check Sponsor Link", reward: 0.01},
+            {id:3, title: "Micro Task 1", reward: 0.01},
+            {id:4, title: "Daily Bonus Click", reward: 0.01},
+            {id:5, title: "Visit & Earn", reward: 0.01}
+        ];
+
+        // Load User Data
+        userRef.on('value', s => {
+            const u = s.val();
+            if(!u) {
+                let refBy = new URLSearchParams(window.location.search).get('start');
+                userRef.set({ name: tg.initDataUnsafe.user.first_name, balance: 0.0, adsCount: 0, referrals: 0, lastAdDate: "" });
+                if(refBy) db.ref('users/'+refBy+'/referrals').transaction(c => (c||0)+1);
+            } else {
+                renderUI(u);
+                renderTasks(u.cooldowns || {});
+            }
+            document.getElementById('splash').style.display = 'none';
+        });
+
+        function renderUI(u) {
+            document.getElementById('bal-text').innerText = "$" + (u.balance || 0).toFixed(3);
+            document.getElementById('ads-count').innerText = (u.adsCount || 0) + "/15";
+            document.getElementById('ref-count').innerText = (u.referrals || 0) + "/10";
+            document.getElementById('display-name').innerText = u.name || "User";
+            
+            // Daily Ad Reset
+            const today = new Date().toDateString();
+            if(u.lastAdDate !== today) {
+                userRef.update({ adsCount: 0, lastAdDate: today });
+            }
+        }
+
+        function renderTasks(cooldowns) {
+            const container = document.getElementById('jobs-container');
+            container.innerHTML = "";
+            const now = Date.now();
+
+            tasksList.forEach(t => {
+                const lastTime = cooldowns[t.id] || 0;
+                const remaining = (6 * 60 * 60 * 1000) - (now - lastTime);
+
+                let btn;
+                if(remaining > 0) {
+                    const h = Math.floor(remaining / 3600000);
+                    const m = Math.floor((remaining % 3600000) / 60000);
+                    btn = `<button class="btn-task" disabled>${h}h ${m}m</button>`;
+                } else {
+                    btn = `<button class="btn-task" id="btn-${t.id}" onclick="startTask(${t.id}, ${t.reward})">Start</button>`;
+                }
+
+                container.innerHTML += `
+                    <div class="job-card">
+                        <div><b>${t.title}</b><span class="reward">+$${t.reward}</span></div>
+                        ${btn}
+                    </div>`;
+            });
+        }
+
+        // Countdown Time Task Fix
+        function startTask(id, reward) {
+            tg.openLink("https://omg10.com/4/10515414");
+            const btn = document.getElementById(`btn-${id}`);
+            let timeLeft = 20; // 20 seconds
+            btn.disabled = true;
+
+            const timer = setInterval(() => {
+                btn.innerText = `Wait ${timeLeft}s`;
+                timeLeft--;
+
+                if(timeLeft < 0) {
+                    clearInterval(timer);
+                    btn.innerText = "Claim Now";
+                    btn.style.background = "#4caf50";
+                    btn.style.color = "white";
+                    btn.onclick = () => {
+                        // Show Ad before reward
+                        showAdSDK(() => {
+                            userRef.child('balance').transaction(b => (b||0) + reward);
+                            userRef.child('cooldowns/'+id).set(Date.now());
+                            tg.showAlert("Success! Reward added.");
+                        });
+                    };
+                }
+            }, 1000);
+        }
+
+        function watchAd() {
+            userRef.child('adsCount').once('value', s => {
+                if((s.val() || 0) >= 15) return tg.showAlert("Daily limit 15/15 reached!");
+                showAdSDK(() => {
+                    userRef.child('balance').transaction(b => (b||0) + 0.005);
+                    userRef.child('adsCount').transaction(c => (c||0) + 1);
+                    tg.showAlert("Ad watched! Reward added.");
+                });
+            });
+        }
+
+        // SDK Call Fix
+        function showAdSDK(callback) {
+            if(typeof show_10730933 === 'function') {
+                show_10730933().then(() => {
+                    callback();
+                }).catch(() => {
+                    tg.showAlert("Ad failed to load. Try again.");
+                });
+            } else {
+                tg.showAlert("Ad SDK not ready.");
+            }
+        }
+
+        function processWithdraw() {
+            userRef.once('value', s => {
+                const u = s.val();
+                if(u.balance < 5) return tg.showAlert("Minimum balance is $5.00");
+                if(u.referrals < 10) return tg.showAlert("You need 10 referrals to unlock.");
+                
+                const addr = prompt("Enter USDT BEP20 Address:");
+                if(addr && addr.length > 15) {
+                    db.ref('withdrawals').push({ userId, amount: 5, addr, status: 'pending', date: Date.now() });
+                    userRef.child('balance').transaction(b => b - 5);
+                    tg.showAlert("Withdrawal submitted! History updated.");
+                }
+            });
+        }
+
+        function inviteFriend() {
+            const descs = [
+                "Make money daily with GlintEarn! 💰",
+                "Earn USDT by watching simple ads! 🚀",
+                "The most trusted earning bot is here! 💎",
+                "Start your passive income today! 💸"
+            ];
+            const text = descs[Math.floor(Math.random() * descs.length)];
+            const link = `https://t.me/GlintEarnBot?start=${userId}`;
+            tg.openTelegramLink(`https://t.me/share/url?url=${link}&text=${encodeURIComponent(text)}`);
+        }
+
+        function toggleHistory(show) {
+            const modal = document.getElementById('history-modal');
+            modal.style.display = show ? 'block' : 'none';
+            if(show) {
+                db.ref('withdrawals').orderByChild('userId').equalTo(userId.toString()).once('value', s => {
+                    const list = s.val();
+                    const cont = document.getElementById('hist-content');
+                    cont.innerHTML = "";
+                    if(!list) cont.innerHTML = "No history yet.";
+                    else {
+                        for(let id in list) {
+                            cont.innerHTML += `<div style="border-bottom:1px solid #ddd; padding:10px 0;">
+                                $${list[id].amount} - <b>${list[id].status}</b><br><small>${new Date(list[id].date).toLocaleDateString()}</small>
+                            </div>`;
+                        }
+                    }
+                });
+            }
+        }
+
+        tg.ready();
+    </script>
+</body>
+</html>
