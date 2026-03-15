@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GlintEarn - Premium Earning App</title>
+
+    <!-- Monetag/Ad SDK -->
+    <script src='//libtl.com/sdk.js' data-zone='10730933' data-sdk='show_10730933'></script>
+
+    <!-- CDN Libraries -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+
+    <style>
+        :root {
+            --milk: #F5F5DC;
+            --brown: #5D4037;
+            --dark-brown: #3E2723;
+            --tan: #D2B48C;
+            --white: #FFFFFF;
+            --gold: #FFD700;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            background-color: var(--milk); 
+            color: var(--dark-brown); 
+            font-family: 'Poppins', sans-serif; 
+            margin: 0; padding: 0; 
+            overflow-x: hidden;
+        }
+
+        /* Animations */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .fade-in { animation: fadeIn 0.8s ease-in; }
+        .slide-up { animation: fadeInUp 0.8s ease-out; }
+
+        /* Splash Screen */
+        #splash {
+            position: fixed; top: 0; width: 100%; height: 100%; background: var(--milk);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10000;
+        }
+        #splash img { width: 100px; border-radius: 25px; animation: pulse 2s infinite; }
+
+        /* Main Container */
+        .app-container { padding: 20px; max-width: 500px; margin: auto; }
+
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .user-welcome { font-size: 14px; font-weight: 600; }
+        .history-btn { 
+            background: var(--brown); color: var(--milk); border-radius: 12px; 
+            width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); cursor: pointer; transition: 0.3s;
+        }
+        .history-btn:hover { transform: rotate(15deg); }
+
+        /* Wallet Card */
+        .wallet-card {
+            background: linear-gradient(135deg, var(--brown), var(--dark-brown), var(--brown));
+            background-size: 200% 100%;
+            animation: shimmer 5s infinite linear;
+            color: var(--milk); padding: 40px 20px; border-radius: 30px;
+            text-align: center; border: 2px solid var(--tan); 
+            box-shadow: 0 15px 30px rgba(93, 64, 55, 0.3);
+            position: relative; overflow: hidden;
+        }
+        .wallet-card h1 { margin: 10px 0; font-size: 45px; font-weight: 800; letter-spacing: -1px; }
+        .wallet-card small { text-transform: uppercase; font-size: 11px; letter-spacing: 2px; opacity: 0.8; }
+
+        /* Stats Section */
+        .stats-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 25px 0; }
+        .stat-card { 
+            background: var(--white); border: 1.5px solid var(--tan); padding: 20px; 
+            border-radius: 20px; text-align: center; transition: 0.3s;
+        }
+        .stat-card b { font-size: 22px; color: var(--brown); }
+        .stat-card:active { transform: scale(0.95); }
+
+        /* Action Buttons */
+        .btn-action {
+            width: 100%; padding: 18px; border: none; border-radius: 18px;
+            font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 15px;
+            transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-watch { background: var(--brown); color: var(--milk); box-shadow: 0 6px 0 var(--dark-brown); }
+        .btn-withdraw { background: var(--tan); color: var(--dark-brown); box-shadow: 0 6px 0 #b38b59; }
+        .btn-action:active { transform: translateY(4px); box-shadow: none; }
+
+        /* Job Cards */
+        .section-title { font-size: 18px; font-weight: 700; margin: 30px 0 15px; }
+        .job-card {
+            background: var(--white); border-radius: 22px; padding: 20px; margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-left: 10px solid var(--brown); box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+            transition: 0.3s;
+        }
+        .job-card:hover { transform: translateX(5px); }
+        .job-reward { color: #2e7d32; font-weight: 800; font-size: 15px; }
+        .btn-job { 
+            background: var(--tan); border: none; padding: 10px 20px; 
+            border-radius: 14px; font-weight: bold; color: var(--dark-brown);
+        }
+
+        /* Referral Bonus Badge */
+        .ref-bonus-badge {
+            background: var(--gold); color: var(--dark-brown);
+            padding: 5px 12px; border-radius: 50px; font-size: 10px;
+            font-weight: 900; position: absolute; top: 15px; right: 15px;
+            animation: bounceIn 1s;
+        }
+
+        /* Modals */
+        .modal { display: none; position: fixed; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10001; backdrop-filter: blur(5px); }
+        .modal-content { 
+            position: absolute; bottom: 0; width: 100%; background: var(--milk); 
+            border-radius: 35px 35px 0 0; padding: 30px; max-height: 85vh; overflow-y: auto;
+            animation: slideInUp 0.5s;
+        }
+
+        /* Support Chat */
+        #chat-window { height: 250px; overflow-y: auto; background: #e8e4da; border-radius: 20px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 12px 16px; border-radius: 18px; max-width: 80%; font-size: 14px; line-height: 1.4; }
+        .msg.user { align-self: flex-end; background: var(--brown); color: white; border-bottom-right-radius: 4px; }
+        .msg.admin { align-self: flex-start; background: white; color: var(--dark-brown); border-bottom-left-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <!-- Splash -->
+    <div id="splash">
+        <img src="logo.png" alt="Logo">
+        <h2 style="color: var(--brown); margin-top:15px;">GlintEarn</h2>
+        <small>Premium Experience</small>
+    </div>
+
+    <div class="app-container fade-in">
+        <!-- Header -->
+        <div class="header">
+            <div class="user-welcome">Hello, <span id="u-name" style="color:var(--brown)">User</span></div>
+            <div class="history-btn" onclick="openModal('history-modal')"><i class="fa fa-receipt"></i></div>
+        </div>
+
+        <!-- Wallet Card -->
+        <div class="wallet-card slide-up">
+            <div class="ref-bonus-badge">REF BONUS: $0.001</div>
+            <small>Current Wallet Balance</small>
+            <h1 id="u-bal">$0.000</h1>
+            <div style="font-size:10px; opacity:0.7;">Verified USDT (BEP20)</div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-container">
+            <div class="stat-card slide-up" style="animation-delay: 0.1s;">
+                <b id="u-ads">0/15</b><br><small>Ads Today</small>
+            </div>
+            <div class="stat-card slide-up" style="animation-delay: 0.2s;">
+                <b id="u-refs">0/10</b><br><small>Friends Invited</small>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <button class="btn-action btn-watch slide-up" style="animation-delay: 0.3s;" onclick="watchAd()">
+            <i class="fa fa-play-circle"></i> Watch Ads & Earn
+        </button>
+        <button class="btn-action btn-withdraw slide-up" style="animation-delay: 0.4s;" onclick="handleWithdraw()">
+            <i class="fa fa-wallet"></i> Instant Withdrawal
+        </button>
+
+        <div class="section-title slide-up" style="animation-delay: 0.5s;">⚡ Micro Jobs (6H Cooldown)</div>
+        <div id="jobs-container" class="slide-up" style="animation-delay: 0.6s;"></div>
+
+        <!-- Footer Buttons -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:30px;">
+            <button class="btn-action" style="background:white; color:var(--brown); border:1px solid var(--tan);" onclick="openModal('share-modal')">
+                <i class="fa fa-user-plus"></i> Invite
+            </button>
+            <button class="btn-action" style="background:white; color:var(--brown); border:1px solid var(--tan);" onclick="openModal('support-modal')">
+                <i class="fa fa-headset"></i> Support
+            </button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- History Modal -->
+    <div id="history-modal" class="modal" onclick="closeModal('history-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 style="margin-top:0"><i class="fa fa-history"></i> Withdrawal History</h3>
+            <div id="hist-list">No transactions found.</div>
+            <button class="btn-action btn-watch" style="margin-top:20px;" onclick="closeModal('history-modal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="share-modal" class="modal" onclick="closeModal('share-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 style="margin-top:0">Invite Friends</h3>
+            <p style="font-size:13px; color:#666; margin-bottom:20px;">Earn <b>$0.001</b> for every friend who joins through your link!</p>
+            <div onclick="doShare('wa')" style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:15px;">
+                <i class="fab fa-whatsapp" style="color:#25D366; font-size:24px;"></i> WhatsApp
+            </div>
+            <div onclick="doShare('tg')" style="padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:15px;">
+                <i class="fab fa-telegram" style="color:#0088CC; font-size:24px;"></i> Telegram
+            </div>
+            <div onclick="doShare('cp')" style="padding:15px; display:flex; align-items:center; gap:15px;">
+                <i class="fa fa-copy" style="font-size:24px;"></i> Copy Invite Link
+            </div>
+            <button class="btn-action btn-watch" style="margin-top:20px;" onclick="closeModal('share-modal')">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Support Modal -->
+    <div id="support-modal" class="modal" onclick="closeModal('support-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 style="margin-top:0">Live Support Chat</h3>
+            <div id="chat-window"></div>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <input type="text" id="chat-input" placeholder="Type message..." style="flex:1; padding:12px; border-radius:15px; border:1px solid #ddd; outline:none;">
+                <button onclick="sendMsg()" style="background:var(--brown); color:white; border:none; padding:0 20px; border-radius:15px;"><i class="fa fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // FIREBASE SETUP
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzzgsXE6dpO5OD6LO0g8osMY1tZ5xoh14",
+            authDomain: "glintearn.firebaseapp.com",
+            databaseURL: "https://glintearn-default-rtdb.firebaseio.com",
+            projectId: "glintearn",
+            storageBucket: "glintearn.firebasestorage.app",
+            messagingSenderId: "670088953296",
+            appId: "1:670088953296:web:29c03248336765e623cdd5"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const userId = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : "test_user";
+        const firstName = tg.initDataUnsafe.user ? tg.initDataUnsafe.user.first_name : "User";
+        const userRef = db.ref('users/' + userId);
+
+        // Load User Data & Handle Referral Bonus ($0.001)
+        userRef.on('value', s => {
+            const u = s.val();
+            if (!u) {
+                let refBy = new URLSearchParams(window.location.search).get('start');
+                userRef.set({ name: firstName, balance: 0, referrals: 0, adsCount: 0 });
+                
+                // Crediting the referrer with $0.001
+                if (refBy) {
+                    db.ref('users/' + refBy).transaction(userData => {
+                        if (userData) {
+                            userData.balance = (userData.balance || 0) + 0.001;
+                            userData.referrals = (userData.referrals || 0) + 1;
+                        }
+                        return userData;
+                    });
+                }
+            } else {
+                updateUI(u);
+            }
+            document.getElementById('splash').style.display = 'none';
+        });
+
+        function updateUI(u) {
+            document.getElementById('u-name').innerText = firstName;
+            document.getElementById('u-bal').innerText = "$" + (u.balance || 0).toFixed(3);
+            document.getElementById('u-ads').innerText = (u.adsCount || 0) + "/15";
+            document.getElementById('u-refs').innerText = (u.referrals || 0) + "/10";
+            renderJobs(u.cooldowns || {});
+            loadChat();
+            loadHistory();
+        }
+
+        // Job Logic
+        const jobs = [
+            {id: 1, title: "Micro Task 1", reward: 0.01},
+            {id: 2, title: "Micro Task 2", reward: 0.01},
+            {id: 3, title: "Partner Click", reward: 0.01},
+            {id: 4, title: "Daily Bonus", reward: 0.01},
+            {id: 5, title: "Sponsor Visit", reward: 0.02}
+        ];
+
+        function renderJobs(cooldowns) {
+            const cont = document.getElementById('jobs-container');
+            cont.innerHTML = "";
+            const now = Date.now();
+            jobs.forEach(j => {
+                const remaining = (6*3600000) - (now - (cooldowns[j.id] || 0));
+                let btn;
+                if(remaining > 0) {
+                    const h = Math.floor(remaining/3600000);
+                    const m = Math.floor((remaining%3600000)/60000);
+                    btn = `<button class="btn-job" disabled>${h}h ${m}m</button>`;
+                } else {
+                    btn = `<button class="btn-job" onclick="startJob(${j.id}, ${j.reward})">Start</button>`;
+                }
+                cont.innerHTML += `<div class="job-card animate__animated animate__fadeInUp"><div><b>${j.title}</b><br><span class="job-reward">+$${j.reward}</span></div>${btn}</div>`;
+            });
+        }
+
+        function startJob(id, reward) {
+            tg.openLink("https://omg10.com/4/10515414");
+            tg.showAlert("Complete the task and return to claim!");
+            setTimeout(() => {
+                if(confirm("Did you finish the visit?")) {
+                    if(typeof show_10730933 === 'function') {
+                        show_10730933().then(() => {
+                            userRef.child('balance').transaction(b => (b||0) + reward);
+                            userRef.child('cooldowns/'+id).set(Date.now());
+                            tg.showAlert("Reward Claimed!");
+                        });
+                    }
+                }
+            }, 5000);
+        }
+
+        // Ad Logic
+        function watchAd() {
+            userRef.child('adsCount').once('value', s => {
+                if((s.val()||0) >= 15) return tg.showAlert("Limit reached!");
+                if(typeof show_10730933 === 'function') {
+                    show_10730933().then(() => {
+                        userRef.child('balance').transaction(b => (b||0) + 0.005);
+                        userRef.child('adsCount').transaction(c => (c||0) + 1);
+                        tg.showAlert("Success! +$0.005 added.");
+                    });
+                }
+            });
+        }
+
+        // Support Chat
+        function sendMsg() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if(msg) {
+                db.ref('messages/'+userId).push({ text: msg, sender: 'user', time: Date.now() });
+                input.value = "";
+            }
+        }
+
+        function loadChat() {
+            db.ref('messages/'+userId).on('value', s => {
+                const win = document.getElementById('chat-window');
+                win.innerHTML = "";
+                s.forEach(c => {
+                    const m = c.val();
+                    win.innerHTML += `<div class="msg ${m.sender}">${m.text}</div>`;
+                });
+                win.scrollTop = win.scrollHeight;
+            });
+        }
+
+        // Share Logic
+        function doShare(type) {
+            const link = `https://t.me/GlintEarnBot?start=${userId}`;
+            const text = encodeURIComponent("Join GlintEarn and earn $0.001 instantly plus daily USDT! 💰 Join: ");
+            if(type === 'wa') tg.openLink(`https://api.whatsapp.com/send?text=${text}${link}`);
+            if(type === 'tg') tg.openTelegramLink(`https://t.me/share/url?url=${link}&text=${text}`);
+            if(type === 'cp') {
+                const el = document.createElement('textarea');
+                el.value = link; document.body.appendChild(el);
+                el.select(); document.execCommand('copy');
+                document.body.removeChild(el);
+                tg.showAlert("Link copied! Share with friends to earn $0.001!");
+            }
+            closeModal('share-modal');
+        }
+
+        // Withdraw Logic
+        function handleWithdraw() {
+            userRef.once('value', s => {
+                const u = s.val();
+                if(u.balance < 5) return tg.showAlert("Minimum balance is $5.00");
+                if(u.referrals < 10) return tg.showAlert("10 Referrals required to unlock withdrawal.");
+                const addr = prompt("Enter USDT BEP20 Wallet Address:");
+                if(addr && addr.length > 20) {
+                    db.ref('withdrawals').push({ userId, amount: 5, addr, status: 'pending', date: Date.now() });
+                    userRef.child('balance').transaction(b => b - 5);
+                    tg.showAlert("Withdrawal request submitted!");
+                }
+            });
+        }
+
+        function loadHistory() {
+            db.ref('withdrawals').orderByChild('userId').equalTo(userId.toString()).on('value', s => {
+                const hist = document.getElementById('hist-list');
+                hist.innerHTML = "";
+                if(!s.exists()) hist.innerHTML = "No transactions found.";
+                s.forEach(c => {
+                    const w = c.val();
+                    hist.innerHTML += `<div style="padding:15px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between;">
+                        <div><b>$${w.amount}</b><br><small>${new Date(w.date).toLocaleDateString()}</small></div>
+                        <div style="color:${w.status==='paid'?'green':'orange'}">${w.status.toUpperCase()}</div>
+                    </div>`;
+                });
+            });
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'block'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        tg.ready();
+    </script>
+</body>
+  </html>
